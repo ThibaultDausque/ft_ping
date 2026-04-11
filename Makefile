@@ -1,10 +1,11 @@
 CC = cc
 NAME = ft_ping
-CFLAGS = -Wall -Wextra -Werror -g
+CFLAGS = -Wall -Wextra -Werror -g -fsanitize=address
 INCLUDE = -Iincludes
 DIR = obj
 SRC = src/main.c \
-	  src/utils.c
+	  src/utils.c \
+	  src/ft_ping.c
 
 OBJ = $(SRC:src/%.c=$(DIR)/%.o)
 

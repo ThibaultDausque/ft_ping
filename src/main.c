@@ -2,18 +2,18 @@
 
 int	main(int ac, char **av)
 {
-	char	*option;
-	// char	*host;
+	//char	*option;
+	char	*host;
 
-	if (ac != 3)
+	if (ac < 2)
 	{
 		printf("ft_ping: missing host operand\n");
 		exit(0);
 	}
 	
-	option = av[1];
-	// host = av[2];
-	parse_opt(option);
-
+	host = av[1];
+	// parse_opt(option);
+	ft_ping(host);
+	
 	return 0;
 }
