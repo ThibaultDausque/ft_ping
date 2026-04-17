@@ -26,14 +26,15 @@
 //  4  5  00 5400 205a   0 0000  3f  01 889c 10.205.17.29  142.251.39.206
 // --- google.com ping statistics ---
 
+//be carefull on exit code
+
 // convert host address google.com -> X.X.X.X:XXXX
 char	*host_convert(char *addr)
 {
 	struct addrinfo	hints, *res, *res0;
 	
 	int		error;
-	char	*ip_v4_str = (char*)malloc(INET_ADDRSTRLEN * sizeof(char));
-
+	char	*ip_v4_str = ip_v4_str = (char*)malloc(INET_ADDRSTRLEN);
 	if (!ip_v4_str)
 	{
 		printf("Error: ip_v4_str malloc() failed\n");
@@ -59,7 +60,7 @@ char	*host_convert(char *addr)
 		{
 			struct sockaddr_in *ip_v4 = (struct sockaddr_in *)res->ai_addr;
 			addr = &(ip_v4->sin_addr);
-			inet_ntop(res->ai_family, addr, ip_v4_str, sizeof ip_v4_str);
+			inet_ntop(res->ai_family, addr, ip_v4_str, INET_ADDRSTRLEN);
 			printf(" %s : %s\n", "IPv4", ip_v4_str);
 		}
 	}
@@ -69,24 +70,55 @@ char	*host_convert(char *addr)
 
 int	ft_ping(char *cmd)
 {
-	struct sockaddr_in	servaddr;
-
-	int		sockfd = 0;
+	struct sockaddr_in	srcaddr, hostaddr;
+	struct hostent		*hp;
+	struct protoent		*proto;
+	
+	char	*hostname;
 	char	*ip_str = host_convert(cmd);
-	int		inet = inet_pton(AF_INET, ip_str, &(servaddr.sin_addr));
+	int		s;
+	int		datalen;
 
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htonl(inet);
+	memset(&srcaddr, 0, sizeof(srcaddr));
 
-    if ((bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr))) != 0)
-    {
-        printf("Error: bind error\n");
-        exit(1);
-    }
-    if (listen(sockfd, 10) != 0)
-    {
-		printf("Error: listen error\n");
+	//int		inet = inet_pton(AF_INET, ip_str, &(servaddr.sin_addr));
+
+	printf("ip_str -> %s\n", ip_str);
+	bzero((char *)&hostaddr, sizeof(struct sockaddr_in *));
+	srcaddr.sin_family = AF_INET;
+	srcaddr.sin_addr.s_addr = inet_addr(ip_str);
+	srcaddr.sin_port = htons(0);
+
+	hp = gethostbyname(cmd);
+	if (hp)
+	{
+		hostaddr.sin_family = hp->h_addrtype;
+		bcopy(hp->h_addr, (caddr_t)&hostaddr.sin_addr, hp->h_length);
+		hostname = hp->h_name;
+	}
+	else
+	{
+		printf("ping: cannot resolve %s: Unknown host", hp->h_name);
 		exit(1);
 	}
+
+	if ((proto = getprotobyname("icmp")) == NULL)
+	{
+		fprintf(stderr, "icmp: unknown protocol\n");
+		exit(10);
+	}
+
+	if ((s = socket(AF_INET, SOCK_RAW, proto->p_proto)) < 0)
+	{
+		perror("ft_ping: socket");
+		exit(5);
+	}
+
+	datalen = 0;
+	if (hostaddr.sin_family == AF_INET)
+		printf("PING %s (%s): %d data bytes\n", hostname, inet_ntoa(hostaddr.sin_addr), datalen);
+	else
+		printf("PING %s: %d data bytes\n", hostname, datalen);
+	setlinebuf(stdout);
 	return 0;
 }
