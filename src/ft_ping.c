@@ -26,99 +26,96 @@
 //  4  5  00 5400 205a   0 0000  3f  01 889c 10.205.17.29  142.251.39.206
 // --- google.com ping statistics ---
 
-//be carefull on exit code
+// be carefull on exit code
 
 // convert host address google.com -> X.X.X.X:XXXX
-char	*host_convert(char *addr)
+
+void	host_addr(char *hostname)
 {
-	struct addrinfo	hints, *res, *res0;
-	
-	int		error;
-	char	*ip_v4_str = ip_v4_str = (char*)malloc(INET_ADDRSTRLEN);
-	if (!ip_v4_str)
-	{
-		printf("Error: ip_v4_str malloc() failed\n");
-		exit(0);
-	}
-	
+	//getaddrinfo(), returns a list of addr struct
+	int						s, sfd;
+	char					buf[BUF_SIZE];
+	ssize_t					nread;
+	socklen_t				peer_addrlen;
+	struct addrinfo			hints;
+	struct addrinfo			*result, *rp;
+	struct sockaddr_storage	peer_addr;
+
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM; //TCP STREAM SOCKET
+	hints.ai_protocol = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE;
 
-	error = getaddrinfo(addr, "http", &hints, &res0);
-	if (error < 0)
+	hints.ai_protocol = IPPROTO_ICMP;
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+   	hints.ai_next = NULL;
+
+	s = getaddrinfo(NULL, hostname, &hints, &result);
+	if (s != 0)
 	{
-		printf("Error: getaddrinfo error\n");
-		exit(0);
+		perror("Error: getaddrinfo: %s\n", gai_strerror(s));
+		exit(EXIT_FAILURE);
 	}
-	
-	for (res = res0; res; res = res->ai_next)
-	{
-		void	*addr;
 
-		if (res->ai_family == AF_INET)
+	for (rp = result; rp != NULL; rp = rp->next)
+	{
+		char	host[1024], service[1024];
+		peer_addrlen = sizeof(peer_addr);
+		sfd = socket(rp-ai_family, rp->ai_socktype,
+					rp->ai_protocol);
+		if (sfd == -1)
+			continue ;
+		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
 		{
-			struct sockaddr_in *ip_v4 = (struct sockaddr_in *)res->ai_addr;
-			addr = &(ip_v4->sin_addr);
-			inet_ntop(res->ai_family, addr, ip_v4_str, INET_ADDRSTRLEN);
-			printf(" %s : %s\n", "IPv4", ip_v4_str);
+			char	buf[1024];
+			nread = recvfrom(sfd, buf, sizeof(buf), 0
+						(struct sockaddr *)&peer_addr, &peer_addrlen);
+			printf("Received %zd bytes from %s:%s\n",
+				nread, host, service);	
+			break ;
 		}
+		close(sfd)
 	}
-	freeaddrinfo(res0);
-	return ip_v4_str;
+
+
 }
 
 int	ft_ping(char *cmd)
 {
-	struct sockaddr_in	srcaddr, hostaddr;
-	struct hostent		*hp;
-	struct protoent		*proto;
-	
-	char	*hostname;
-	char	*ip_str = host_convert(cmd);
-	int		s;
-	int		datalen;
+	struct icmp			*icmp;
+	struct sockaddr_in	ipv4_sock;
 
-	memset(&srcaddr, 0, sizeof(srcaddr));
+	void	*host_addr = host_convert(cmd);
+	int		icmp_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	char	recv_buf[1024];
 
-	//int		inet = inet_pton(AF_INET, ip_str, &(servaddr.sin_addr));
-
-	printf("ip_str -> %s\n", ip_str);
-	bzero((char *)&hostaddr, sizeof(struct sockaddr_in *));
-	srcaddr.sin_family = AF_INET;
-	srcaddr.sin_addr.s_addr = inet_addr(ip_str);
-	srcaddr.sin_port = htons(0);
-
-	hp = gethostbyname(cmd);
-	if (hp)
+	if (icmp_sock < 0)
 	{
-		hostaddr.sin_family = hp->h_addrtype;
-		bcopy(hp->h_addr, (caddr_t)&hostaddr.sin_addr, hp->h_length);
-		hostname = hp->h_name;
-	}
-	else
-	{
-		printf("ping: cannot resolve %s: Unknown host", hp->h_name);
+		perror("Error: socket");
 		exit(1);
 	}
 
-	if ((proto = getprotobyname("icmp")) == NULL)
-	{
-		fprintf(stderr, "icmp: unknown protocol\n");
-		exit(10);
-	}
+	icmp->icmp_type = ICMP_ECHO;
+	icmp->icmp_code = 0;
+	icmp->icmp_cksum = 0;
 
-	if ((s = socket(AF_INET, SOCK_RAW, proto->p_proto)) < 0)
-	{
-		perror("ft_ping: socket");
-		exit(5);
-	}
+	ipv4_sock.sin_family = AF_INET;
+	ipv4_sock.sin_addr.s_addr = htonl(htons(host_addr));
 
-	datalen = 0;
-	if (hostaddr.sin_family == AF_INET)
-		printf("PING %s (%s): %d data bytes\n", hostname, inet_ntoa(hostaddr.sin_addr), datalen);
-	else
-		printf("PING %s: %d data bytes\n", hostname, datalen);
-	setlinebuf(stdout);
+	if (sendto(icmp_sock, &icmp, sizeof(icmp), 0,
+		(struct sockaddr *)&ipv4_sock, sizeof(ipv4_sock)))
+	{
+		perror("Error: send() failed\n");
+		exit(1);
+	}
+	
+	if (recvfrom(icmp_sock, &recv_buf, sizeof(recv_buf), 0,
+		(struct sockaddr *)&ipv4_sock, sizeof(ipv4_sock)) <= 0)
+	{
+		perror("Error: recvfrom() failed\n");
+		exit(1);
+	}
+	printf("data received from %s : %s\n", cmd, recv_buf);
 	return 0;
 }

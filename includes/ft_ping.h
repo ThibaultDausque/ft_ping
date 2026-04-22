@@ -17,6 +17,7 @@
 
 #define MAXWAIT		10
 #define MAXPAXKET	4096
+#define BUF_SIZE    500
 
 // utils
 int	parse_opt(char *line);
