@@ -8,6 +8,7 @@ int	main(int ac, char **av)
 		exit(0);
 	}
 
+	parse_addr(av[1]);
 	printf("%s\n", av[1]);
 	return 0;
 }
