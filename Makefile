@@ -3,7 +3,8 @@ NAME = ft_ping
 CFLAGS = -Wall -Wextra -Werror -g
 INCLUDE = -Iinclude
 SRC = src/main.c \
-	src/ping.c
+	src/ping.c \
+	src/utils.c
 
 DIR = objs
 OBJS = $(SRC:src/%.c=$(DIR)/%.o)
